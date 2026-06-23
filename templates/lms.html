@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IUA LMS</title>
+    <style>
+        :root {
+            --ink: #17202a;
+            --muted: #667085;
+            --line: #d8dee8;
+            --panel: #ffffff;
+            --soft: #f4f7fb;
+            --brand: #1f6f78;
+            --brand-dark: #12333f;
+            --accent: #d89b2b;
+            --green: #157a5b;
+            --blue: #3454d1;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--ink);
+            background: var(--soft);
+        }
+        a { color: inherit; text-decoration: none; }
+        button, input, textarea, select { font: inherit; }
+        p { color: var(--muted); line-height: 1.5; }
+        h1, h2, h3, p { margin-top: 0; }
+
+        .auth {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+        }
+        .auth-hero {
+            padding: 54px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: #fff;
+            background:
+                linear-gradient(rgba(18, 62, 72, .84), rgba(18, 51, 63, .92)),
+                url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1500&q=80");
+            background-size: cover;
+            background-position: center;
+        }
+        .logo {
+            width: 54px;
+            height: 54px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: #fff;
+            color: var(--brand-dark);
+            font-weight: 900;
+        }
+        .auth-hero h1 {
+            max-width: 640px;
+            margin: 30px 0 12px;
+            font-size: 46px;
+            line-height: 1.05;
+        }
+        .auth-hero p { max-width: 560px; color: rgba(255,255,255,.84); }
+        .weights {
+            max-width: 680px;
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(100px, 1fr));
+            gap: 12px;
+        }
+        .weight {
+            padding: 14px;
+            border: 1px solid rgba(255,255,255,.24);
+            border-radius: 8px;
+            background: rgba(255,255,255,.12);
+        }
+        .weight strong { display: block; margin-top: 4px; font-size: 24px; }
+        .auth-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 34px;
+            background: #fff;
+        }
+        .auth-card { width: 100%; max-width: 360px; }
+        .auth-card h2 { margin-bottom: 8px; font-size: 30px; }
+
+        .shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 276px minmax(0, 1fr);
+        }
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow: auto;
+            padding: 22px;
+            color: #d9e9ee;
+            background: var(--brand-dark);
+        }
+        .brand, .profile, .topbar, .row, .actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand { margin-bottom: 24px; }
+        .brand strong, .profile strong { display: block; color: #fff; }
+        .profile {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 8px;
+            background: rgba(255,255,255,.06);
+        }
+        .avatar {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: #e7f4f2;
+            color: var(--brand-dark);
+            font-weight: 900;
+        }
+        .chip {
+            display: inline-flex;
+            width: max-content;
+            max-width: 100%;
+            padding: 5px 8px;
+            border-radius: 8px;
+            background: rgba(216,155,43,.18);
+            color: #ffe1a3;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .nav {
+            display: grid;
+            gap: 6px;
+            margin: 24px 0;
+        }
+        .nav a {
+            padding: 11px 12px;
+            border-radius: 8px;
+            font-weight: 800;
+        }
+        .nav a.active, .nav a:hover { background: rgba(255,255,255,.13); color: #fff; }
+        .content { min-width: 0; }
+        .topbar {
+            min-height: 72px;
+            justify-content: space-between;
+            padding: 16px 30px;
+            border-bottom: 1px solid var(--line);
+            background: #fff;
+        }
+        main {
+            max-width: 1220px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        .page-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+        h1 { margin-bottom: 6px; font-size: 32px; line-height: 1.15; }
+        h2 { font-size: 20px; }
+        .grid { display: grid; gap: 16px; }
+        .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .two { grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); }
+        .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .panel, .card, .empty {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+        .panel { padding: 20px; }
+        .card { padding: 16px; }
+        .stat strong { font-size: 30px; }
+        .muted { color: var(--muted); }
+        .badge {
+            display: inline-flex;
+            width: max-content;
+            max-width: 100%;
+            padding: 5px 8px;
+            border-radius: 8px;
+            background: #e8f6ef;
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 900;
+        }
+        .badge.blue { background: #eef2ff; color: var(--blue); }
+        .beta { background: #fff3d7; color: #8a5a00; }
+        .toolbar, .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+        .field { margin-top: 14px; }
+        label { display: block; margin-bottom: 7px; font-weight: 800; }
+        input, textarea, select {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--ink);
+        }
+        textarea { min-height: 92px; resize: vertical; }
+        .button {
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: var(--brand);
+            color: #fff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .button.secondary {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--ink);
+        }
+        .button.full { width: 100%; }
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-left: 4px solid var(--accent);
+            background: #fff7df;
+            color: #5f4300;
+        }
+        table { width: 100%; min-width: 760px; border-collapse: collapse; }
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            color: var(--muted);
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .table-wrap { overflow-x: auto; }
+        .empty {
+            min-height: 220px;
+            display: grid;
+            place-items: center;
+            padding: 28px;
+            text-align: center;
+        }
+        .list { display: grid; gap: 12px; }
+        .mini-form { display: grid; gap: 10px; }
+        .split-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+        @media (max-width: 980px) {
+            .auth, .shell, .stats, .two, .three, .split-form { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 640px) {
+            main, .topbar, .auth-hero, .auth-panel { padding-left: 18px; padding-right: 18px; }
+            .auth-hero h1 { font-size: 34px; }
+            .weights, .nav { grid-template-columns: 1fr; }
+            .page-title, .topbar { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+{% if mode in ["login", "register", "activate"] %}
+    <div class="auth">
+        <section class="auth-hero">
+            <div class="logo">IUA</div>
+            <h1>Institut Universitaire d'Abidjan</h1>
+            <p>Plateforme de gestion de l'apprentissage. Cours, devoirs, quiz, ressources, questions et certificats dans un seul espace.</p>
+            <div class="weights">
+                <div class="weight"><span>Presence</span><strong>10%</strong></div>
+                <div class="weight"><span>Devoirs</span><strong>60%</strong></div>
+                <div class="weight"><span>Delai</span><strong>10%</strong></div>
+                <div class="weight"><span>Rapport</span><strong>20%</strong></div>
+            </div>
+        </section>
+        <section class="auth-panel">
+            <form class="auth-card" method="POST">
+                <h2>{% if mode == "register" %}{{ tr.register }}{% elif mode == "activate" %}{{ tr.reset_password }}{% else %}{{ tr.login }}{% endif %}</h2>
+                <p>
+                    {% if mode == "register" %}
+                        Creez votre compte etudiant.
+                    {% elif mode == "activate" %}
+                        Creez votre mot de passe pour acceder a votre compte.
+                    {% else %}
+                        Connectez-vous a votre compte.
+                    {% endif %}
+                </p>
+                {% with messages = get_flashed_messages() %}
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+                {% if mode == "register" %}
+                    <div class="field"><label>{{ tr.full_name }}</label><input name="full_name" required></div>
+                {% elif mode == "activate" %}
+                    <div class="field"><label>{{ tr.full_name }}</label><input value="{{ invited.full_name }}" disabled></div>
+                {% endif %}
+                {% if mode != "activate" %}
+                    <div class="field"><label>{{ tr.email }}</label><input name="email" type="email" placeholder="exemple@iua.ci" value="{% if mode == 'login' %}archille.kouame@iua.ci{% endif %}" required></div>
+                {% endif %}
+                <div class="field"><label>{{ tr.password }}</label><input name="password" type="password" required></div>
+                {% if mode in ["register", "activate"] %}
+                    <div class="field"><label>{{ tr.confirm_password }}</label><input name="confirm" type="password" required></div>
+                {% endif %}
+                <div class="field"><button class="button full" type="submit">{% if mode == "register" %}{{ tr.sign_up }}{% elif mode == "activate" %}{{ tr.save }}{% else %}{{ tr.sign_in }}{% endif %}</button></div>
+                {% if mode != "activate" %}
+                    <p>
+                        {% if mode == "register" %}
+                            {{ tr.already_registered }} <a href="{{ url_for('lms_login') }}"><strong>{{ tr.sign_in }}</strong></a>
+                        {% else %}
+                            {{ tr.new_student }} <a href="{{ url_for('lms_register') }}"><strong>{{ tr.create_account }}</strong></a>
+                        {% endif %}
+                    </p>
+                    <p class="muted">Demo prof: prof@iua.ci / prof123<br>Demo etudiant: archille.kouame@iua.ci / demo123</p>
+                {% endif %}
+                <div class="actions">
+                    <a class="button secondary" href="{{ url_for('lms_switch_language', lang='fr') }}">FR</a>
+                    <a class="button secondary" href="{{ url_for('lms_switch_language', lang='en') }}">EN</a>
+                </div>
+            </form>
+        </section>
+    </div>
+{% else %}
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">IUA</div>
+                <div><strong>IUA</strong><span>LMS Platform</span></div>
+            </div>
+            <div class="profile">
+                <div class="avatar">{{ user.full_name[:1] }}</div>
+                <strong>{{ user.full_name }}</strong>
+                <span>{% if user.role == "student" %}Etudiant{% else %}Professeur{% endif %}</span>
+                {% if course %}<span class="chip">{{ course.title }}</span>{% endif %}
+            </div>
+            {% if user.role in ["teacher", "admin"] and teacher_classes %}
+                <form class="panel" style="margin-top:14px; padding:12px;" method="POST" action="{{ url_for('lms_teacher_select_class') }}">
+                    <label style="color:#fff;">{{ tr.select_class }}</label>
+                    <select name="class_id" onchange="this.form.submit()">
+                        {% for class_item in teacher_classes %}
+                            <option value="{{ class_item.id }}" {% if class_item.id == selected_class_id %}selected{% endif %}>{{ class_item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            {% endif %}
+            <nav class="nav">
+                {% for endpoint, label, nav_page in nav_items %}
+                    <a class="{% if page == nav_page %}active{% endif %}" href="{{ url_for(endpoint) }}">{{ label }}</a>
+                {% endfor %}
+            </nav>
+            <div class="actions" style="margin-bottom:14px;">
+                <a class="button secondary" href="{{ url_for('lms_switch_language', lang='fr') }}">FR</a>
+                <a class="button secondary" href="{{ url_for('lms_switch_language', lang='en') }}">EN</a>
+            </div>
+            <form method="POST" action="{{ url_for('lms_logout') }}">
+                <button class="button secondary full" type="submit">{{ tr.logout }}</button>
+            </form>
+        </aside>
+
+        <div class="content">
+            <header class="topbar">
+                <span class="badge beta">BETA</span>
+                <div class="row"><strong>{{ user.full_name }}</strong><span class="muted">{{ user.email }}</span></div>
+            </header>
+            <main>
+                {% with messages = get_flashed_messages() %}
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+
+                {% if page == "dashboard" %}
+                    <section class="page-title">
+                        <div><h1>{% if lms_lang == "en" %}Hello{% else %}Bonjour{% endif %}, {{ user.full_name }} !</h1><p>{{ course.semester }} · {{ course.year }}</p></div>
+                    </section>
+                    <section class="grid stats">
+                        <div class="panel stat"><p>{% if lms_lang == "en" %}Pending assignments{% else %}Devoirs en attente{% endif %}</p><strong>{{ stats.pending_assignments }}</strong></div>
+                        <div class="panel stat"><p>{% if lms_lang == "en" %}Attendance rate{% else %}Taux de presence{% endif %}</p><strong>{{ stats.attendance_rate }}%</strong></div>
+                        <div class="panel stat"><p>{% if lms_lang == "en" %}Quiz average{% else %}Moy. quiz{% endif %}</p><strong>{{ stats.quiz_average }}%</strong></div>
+                        <div class="panel stat"><p>{% if lms_lang == "en" %}Total score{% else %}Score total{% endif %}</p><strong>{{ stats.score_total }}</strong></div>
+                    </section>
+                    <section class="grid two" style="margin-top:16px;">
+                        <div class="panel">
+                            <p class="muted">PROCHAIN COURS</p>
+                            {% if next_session %}
+                                <h2>{{ next_session.title }}</h2>
+                                <p>{{ next_session.session_date }} · {{ next_session.start_time }} — {{ next_session.end_time }}</p>
+                                <div class="actions">
+                                    <a class="button" href="{{ next_session.meet_url or course.meet_url }}">Rejoindre le cours</a>
+                                    <a class="button secondary" href="{{ course.meet_url }}">{{ (course.meet_url or "").replace("https://", "") }}</a>
+                                </div>
+                            {% else %}
+                                <p>Aucun cours a venir.</p>
+                            {% endif %}
+                        </div>
+                        <div class="panel">
+                            <h2>Devoirs recents</h2>
+                            <div class="list">
+                                {% for item in assignments %}
+                                    <a class="card" href="{{ url_for('lms_devoirs') }}">
+                                        <strong>{{ item.title }}</strong>
+                                        <span class="muted">{{ item.due_at }}</span>
+                                        <span class="badge {% if item.submitted_at %}{% else %}blue{% endif %}">{% if item.submitted_at %}Soumis{% else %}A faire{% endif %}</span>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+
+                {% elif page == "planning" %}
+                    <section class="page-title"><div><h1>{{ tr.planning }}</h1><p>{{ course.semester }} · {{ course.year }}</p></div></section>
+                    <section class="panel table-wrap">
+                        <table>
+                            <thead><tr><th>N°</th><th>Cours</th><th>Date & heure</th><th>Duree</th><th>Lien</th><th>Statut</th><th>Action</th></tr></thead>
+                            <tbody>
+                            {% for item in sessions %}
+                                <tr>
+                                    <td>#{{ loop.index }}</td><td>{{ item.title }}</td><td>{{ item.session_date }} · {{ item.start_time }} — {{ item.end_time }}</td><td>{{ item.duration }}</td>
+                                    <td><a href="{{ item.meet_url or course.meet_url }}">{{ (item.meet_url or course.meet_url or "").replace("https://", "") }}</a></td>
+                                    <td><span class="badge {% if item.status == 'upcoming' %}blue{% endif %}">{{ item.status }}</span></td>
+                                    <td>{% if item.replay_url %}<a class="button secondary" href="{{ item.replay_url }}">Replay</a>{% else %}<a class="button" href="{{ item.meet_url or course.meet_url }}">Rejoindre</a>{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </section>
+
+                {% elif page == "devoirs" %}
+                    <section class="page-title"><div><h1>{{ tr.assignments }}</h1><p>{{ course.title }}</p></div></section>
+                    <section class="grid two">
+                        {% for item in assignments %}
+                            <article class="card">
+                                <h2>{{ item.title }}</h2>
+                                <p>{{ item.description }}</p>
+                                <p><strong>Echeance:</strong> {{ item.due_at }} · <strong>Note:</strong> {{ item.score or "-" }}/{{ item.max_score }}</p>
+                                <span class="badge {% if item.submitted_at %}{% else %}blue{% endif %}">{% if item.submitted_at %}Soumis {{ item.submitted_at }}{% else %}A soumettre{% endif %}</span>
+                                <form class="mini-form" method="POST" action="{{ url_for('lms_submit_assignment', assignment_id=item.id) }}">
+                                    <textarea name="content" placeholder="Votre reponse">{{ item.content or "" }}</textarea>
+                                    <input name="file_url" placeholder="Lien fichier Drive ou document" value="{{ item.file_url or '' }}">
+                                    <button class="button" type="submit">Soumettre</button>
+                                </form>
+                            </article>
+                        {% endfor %}
+                    </section>
+
+                {% elif page == "quiz" %}
+                    <section class="page-title"><div><h1>{{ tr.quiz }}</h1><p>{{ course.title }}</p></div></section>
+                    <section class="grid two">
+                        {% for item in quizzes %}
+                            <article class="card">
+                                <h2>{{ item.title }}</h2>
+                                <p>{{ item.question_count }} questions · {{ item.duration_minutes }} min</p>
+                                <p><strong>Score:</strong> {% if item.score is not none %}{{ item.score }}/{{ item.max_score }}{% else %}Non passe{% endif %}</p>
+                                <button class="button secondary" type="button">Voir les resultats</button>
+                            </article>
+                        {% endfor %}
+                    </section>
+
+                {% elif page in ["notes", "textes"] %}
+                    <section class="page-title"><div><h1>{% if page == "notes" %}{{ tr.notes }}{% else %}{{ tr.texts }}{% endif %}</h1><p>{{ course.title }}</p></div></section>
+                    {% if resources %}
+                        <section class="grid two">
+                            {% for item in resources %}
+                                <article class="card"><h2>{{ item.title }}</h2><p>{{ item.description }}</p>{% if item.url %}<a class="button secondary" href="{{ item.url }}">Ouvrir</a>{% endif %}</article>
+                            {% endfor %}
+                        </section>
+                    {% else %}
+                        <section class="empty"><div><h2>Aucune ressource disponible</h2><p>Les supports publies par le professeur apparaitront ici.</p></div></section>
+                    {% endif %}
+
+                {% elif page == "qa" %}
+                    <section class="page-title"><div><h1>{{ tr.qa }}</h1><p>{% if lms_lang == "en" %}Ask your questions to the teacher.{% else %}Posez vos questions au professeur.{% endif %}</p></div></section>
+                    <section class="grid two">
+                        <form class="panel" method="POST">
+                            <h2>Nouvelle question</h2>
+                            <div class="field"><label>Titre</label><input name="title" required></div>
+                            <div class="field"><label>Question</label><textarea name="body"></textarea></div>
+                            <div class="field"><button class="button" type="submit">Publier</button></div>
+                        </form>
+                        <div class="list">
+                            {% for item in questions %}
+                                <article class="card"><h2>{{ item.title }}</h2><p>{{ item.body }}</p><p class="muted">Par {{ item.author_name }}</p>{% if item.answer %}<p><strong>Reponse:</strong> {{ item.answer }}</p>{% endif %}</article>
+                            {% else %}
+                                <section class="empty"><div><h2>Aucune question</h2><p>Soyez le premier a poser une question.</p></div></section>
+                            {% endfor %}
+                        </div>
+                    </section>
+
+                {% elif page == "annonces" %}
+                    <section class="page-title"><div><h1>{{ tr.announcements }}</h1><p>{% if lms_lang == "en" %}Information published by the teaching team.{% else %}Informations publiees par l'equipe pedagogique.{% endif %}</p></div></section>
+                    <section class="grid two">
+                        {% for item in announcements %}
+                            <article class="card"><span class="badge">{{ item.category }}</span><h2>{{ item.title }}</h2><p>{{ item.body }}</p><p class="muted">{{ item.created_at }}</p></article>
+                        {% else %}
+                            <section class="empty"><div><h2>Aucune annonce</h2><p>Les annonces importantes apparaitront ici.</p></div></section>
+                        {% endfor %}
+                    </section>
+
+                {% elif page == "certificats" %}
+                    <section class="page-title"><div><h1>{{ tr.certificates }}</h1><p>{{ course.title }}</p></div></section>
+                    {% if certificates %}
+                        <section class="grid two">
+                            {% for item in certificates %}
+                                <article class="card"><h2>{{ item.title }}</h2><p>Code: {{ item.certificate_code }}</p><span class="badge">{{ item.status }}</span></article>
+                            {% endfor %}
+                        </section>
+                    {% else %}
+                        <section class="empty"><div><h2>Aucun certificat disponible</h2><p>Vos certificats apparaitront ici une fois emis.</p></div></section>
+                    {% endif %}
+
+                {% elif page == "parametres" %}
+                    <section class="page-title"><div><h1>{{ tr.settings }}</h1><p>{% if lms_lang == "en" %}Profile and security.{% else %}Profil et securite.{% endif %}</p></div></section>
+                    <form class="panel" method="POST">
+                        <div class="grid split-form">
+                            <div class="field"><label>Nom complet</label><input name="full_name" value="{{ user.full_name }}"></div>
+                            <div class="field"><label>Email</label><input value="{{ user.email }}" disabled></div>
+                            <div class="field"><label>{{ tr.language }}</label><select name="language"><option value="fr" {% if lms_lang == "fr" %}selected{% endif %}>Francais</option><option value="en" {% if lms_lang == "en" %}selected{% endif %}>English</option></select></div>
+                            <div class="field"><label>Nouveau mot de passe</label><input name="password" type="password"></div>
+                            <div class="field"><label>Confirmer</label><input name="confirm" type="password"></div>
+                        </div>
+                        <div class="field"><button class="button" type="submit">Enregistrer</button></div>
+                    </form>
+
+                {% elif page == "teacher" %}
+                    <section class="page-title"><div><h1>{{ tr.teacher_dashboard }}</h1><p>{% if lms_lang == "en" %}Course management{% else %}Pilotage du cours{% endif %} {{ course.title }}</p></div></section>
+                    <section class="grid stats">
+                        <div class="panel stat"><p>Etudiants</p><strong>{{ counts.students }}</strong></div>
+                        <div class="panel stat"><p>Seances</p><strong>{{ counts.sessions }}</strong></div>
+                        <div class="panel stat"><p>Devoirs</p><strong>{{ counts.assignments }}</strong></div>
+                        <div class="panel stat"><p>Soumissions</p><strong>{{ counts.submissions }}</strong></div>
+                    </section>
+                    <section class="panel" style="margin-top:16px;"><h2>Questions recentes</h2>{% for item in recent_questions %}<p><strong>{{ item.title }}</strong> · {{ item.author_name }}</p>{% else %}<p>Aucune question.</p>{% endfor %}</section>
+
+                {% elif page == "students" %}
+                    <section class="page-title"><div><h1>{{ tr.students }}</h1><p>Suivi des inscriptions, acces et progression pour la classe active.</p></div></section>
+                    <section class="grid two">
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_invite_student') }}">
+                            <h2>{{ tr.invite_student }}</h2>
+                            <input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>{{ tr.full_name }}</label><input name="full_name" required></div>
+                            <div class="field"><label>{{ tr.email }}</label><input name="email" type="email" required></div>
+                            <button class="button" type="submit">{{ tr.send_invite }}</button>
+                        </form>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_create_class') }}">
+                            <h2>Nouvelle classe</h2>
+                            <div class="grid split-form">
+                                <div class="field"><label>Nom</label><input name="name" placeholder="Master 1 - IA" required></div>
+                                <div class="field"><label>Code</label><input name="code" placeholder="M1-AI-2026" required></div>
+                            </div>
+                            <div class="grid split-form">
+                                <div class="field"><label>Niveau</label><input name="level" placeholder="Master 1"></div>
+                                <div class="field"><label>Annee</label><input name="academic_year" value="2026"></div>
+                            </div>
+                            <div class="field"><label>Cours principal</label><input name="course_title" placeholder="Cours principal de la classe"></div>
+                            <div class="field"><label>Lien Meet</label><input name="meet_url" placeholder="https://meet.google.com/..."></div>
+                            <button class="button" type="submit">Creer la classe</button>
+                        </form>
+                    </section>
+                    <section class="panel table-wrap" style="margin-top:16px;">
+                        <table><thead><tr><th>Nom</th><th>Email</th><th>Compte</th><th>Inscription</th><th>Soumissions</th><th>Moy. quiz</th><th>Actions</th></tr></thead><tbody>
+                            {% for item in students %}
+                                <tr>
+                                    <td>{{ item.full_name }}</td>
+                                    <td>{{ item.email }}</td>
+                                    <td><span class="badge {% if item.status != 'active' %}blue{% endif %}">{{ item.status }}</span></td>
+                                    <td>{{ item.enrollment_status }}</td>
+                                    <td>{{ item.submissions_count }}</td>
+                                    <td>{{ (item.quiz_average or 0)|round|int }}%</td>
+                                    <td>
+                                        <div class="actions">
+                                            <form method="POST" action="{{ url_for('lms_teacher_update_student_status', student_id=item.id) }}">
+                                                <input type="hidden" name="status" value="{% if item.status == 'active' %}disabled{% else %}active{% endif %}">
+                                                <button class="button secondary" type="submit">{% if item.status == 'active' %}{{ tr.deactivate }}{% else %}{{ tr.activate }}{% endif %}</button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('lms_teacher_reset_student_password', student_id=item.id) }}">
+                                                <button class="button secondary" type="submit">{{ tr.reset_password }}</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody></table>
+                    </section>
+                    <section class="panel" style="margin-top:16px;">
+                        <h2>Emails generes</h2>
+                        <div class="list">
+                            {% for email in outbox %}
+                                <article class="card"><strong>{{ email.subject }}</strong><span>{{ email.recipient }}</span><p>{{ email.body }}</p><span class="badge">{{ email.status }}</span></article>
+                            {% else %}
+                                <p>Aucun email genere pour le moment.</p>
+                            {% endfor %}
+                        </div>
+                    </section>
+
+                {% elif page == "content" %}
+                    <section class="page-title"><div><h1>Contenus du cours</h1><p>Publier et organiser le LMS.</p></div></section>
+                    <section class="grid two">
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_session') }}">
+                            <h2>Ajouter une seance</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Titre</label><input name="title"></div>
+                            <div class="grid split-form"><div class="field"><label>Date</label><input name="session_date" type="date"></div><div class="field"><label>Statut</label><select name="status"><option value="upcoming">A venir</option><option value="completed">Termine</option></select></div></div>
+                            <div class="grid split-form"><div class="field"><label>Debut</label><input name="start_time" value="08:00"></div><div class="field"><label>Fin</label><input name="end_time" value="09:30"></div></div>
+                            <div class="field"><label>Lien Meet</label><input name="meet_url" value="{{ course.meet_url }}"></div><div class="field"><label>Replay</label><input name="replay_url"></div>
+                            <button class="button" type="submit">Ajouter</button>
+                        </form>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_assignment') }}">
+                            <h2>Publier un devoir</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Titre</label><input name="title" required></div><div class="field"><label>Description</label><textarea name="description"></textarea></div>
+                            <div class="grid split-form"><div class="field"><label>Echeance</label><input name="due_at" placeholder="2026-07-03 12:58"></div><div class="field"><label>Note max</label><input name="max_score" value="20"></div></div>
+                            <button class="button" type="submit">Publier</button>
+                        </form>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_quiz') }}">
+                            <h2>Creer un quiz</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Titre</label><input name="title" required></div><div class="field"><label>Question initiale</label><textarea name="question"></textarea></div>
+                            <div class="grid split-form"><input name="option_a" placeholder="Option A"><input name="option_b" placeholder="Option B"><input name="option_c" placeholder="Option C"><input name="option_d" placeholder="Option D"></div>
+                            <div class="grid split-form"><div class="field"><label>Bonne option</label><input name="correct_option" value="A"></div><div class="field"><label>Duree</label><input name="duration_minutes" value="20"></div></div>
+                            <button class="button" type="submit">Creer</button>
+                        </form>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_resource') }}">
+                            <h2>Ajouter une ressource</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Titre</label><input name="title" required></div><div class="field"><label>Type</label><select name="resource_type"><option value="note">Note de cours</option><option value="texte">Texte</option></select></div>
+                            <div class="field"><label>URL</label><input name="url"></div><div class="field"><label>Description</label><textarea name="description"></textarea></div>
+                            <button class="button" type="submit">Ajouter</button>
+                        </form>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_announcement') }}">
+                            <h2>Publier une annonce</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Titre</label><input name="title" required></div><div class="field"><label>Message</label><textarea name="body"></textarea></div>
+                            <div class="grid split-form"><div class="field"><label>Categorie</label><input name="category" value="Info"></div><div class="field"><label>Priorite</label><select name="priority"><option>normal</option><option>urgent</option></select></div></div>
+                            <button class="button" type="submit">Publier</button>
+                        </form>
+                        <section class="panel">
+                            <h2>Questions a traiter</h2>
+                            <div class="list">
+                                {% for item in data.questions %}
+                                    <form class="card" method="POST" action="{{ url_for('lms_teacher_answer_question', question_id=item.id) }}">
+                                        <strong>{{ item.title }}</strong><p>{{ item.body }}</p><textarea name="answer" placeholder="Reponse">{{ item.answer or "" }}</textarea><button class="button" type="submit">Repondre</button>
+                                    </form>
+                                {% else %}<p>Aucune question.</p>{% endfor %}
+                            </div>
+                        </section>
+                    </section>
+
+                {% elif page == "grades" %}
+                    <section class="page-title"><div><h1>Notes & certificats</h1><p>Correction et emission des certificats.</p></div></section>
+                    <section class="grid two">
+                        <div class="panel">
+                            <h2>Soumissions</h2>
+                            <div class="list">
+                                {% for item in submissions %}
+                                    <form class="card" method="POST" action="{{ url_for('lms_teacher_grade_submission', submission_id=item.id) }}">
+                                        <strong>{{ item.student_name }}</strong><span>{{ item.assignment_title }}</span><p>{{ item.content }}</p>
+                                        <div class="grid split-form"><input name="score" placeholder="Note" value="{{ item.score or '' }}"><input name="feedback" placeholder="Feedback" value="{{ item.feedback or '' }}"></div>
+                                        <button class="button" type="submit">Enregistrer la note</button>
+                                    </form>
+                                {% else %}<p>Aucune soumission.</p>{% endfor %}
+                            </div>
+                        </div>
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_issue_certificate') }}">
+                            <h2>Emettre un certificat</h2><input type="hidden" name="course_id" value="{{ course.id }}">
+                            <div class="field"><label>Etudiant</label><select name="student_id">{% for item in students %}<option value="{{ item.id }}">{{ item.full_name }}</option>{% endfor %}</select></div>
+                            <div class="field"><label>Titre</label><input name="title" value="Certificat de participation"></div>
+                            <button class="button" type="submit">Emettre</button>
+                            <h2 style="margin-top:22px;">Certificats emis</h2>
+                            {% for cert in certificates %}<p><strong>{{ cert.student_name }}</strong> · {{ cert.certificate_code }}</p>{% else %}<p>Aucun certificat emis.</p>{% endfor %}
+                        </form>
+                    </section>
+                {% endif %}
+            </main>
+        </div>
+    </div>
+{% endif %}
+</body>
+</html>
