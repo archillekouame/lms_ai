@@ -1,7 +1,10 @@
 import os
+import json
 import re
 import secrets
+import smtplib
 import sqlite3
+from email.message import EmailMessage
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -77,11 +80,43 @@ def create_user(conn, full_name, email, password, role="student", status="active
     return user_by_email(conn, email)
 
 
+def send_email_now(recipient, subject, body):
+    host = os.environ.get("SMTP_HOST", "").strip()
+    if not host:
+        return False, "SMTP non configure"
+
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    username = os.environ.get("SMTP_USER", "").strip()
+    password = os.environ.get("SMTP_PASSWORD", "")
+    sender = os.environ.get("SMTP_FROM", username or "noreply@lms-ai.local")
+    use_tls = os.environ.get("SMTP_TLS", "1") != "0"
+
+    message = EmailMessage()
+    message["From"] = sender
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(body)
+
+    try:
+        with smtplib.SMTP(host, port, timeout=15) as smtp:
+            if use_tls:
+                smtp.starttls()
+            if username:
+                smtp.login(username, password)
+            smtp.send_message(message)
+        return True, "sent"
+    except Exception as exc:
+        return False, str(exc)
+
+
 def queue_email(conn, recipient, subject, body):
-    conn.execute(
-        "INSERT INTO lms_email_outbox (recipient, subject, body) VALUES (?, ?, ?)",
-        (recipient, subject, body),
-    )
+    sent, detail = send_email_now(recipient, subject, body)
+    status = "sent" if sent else "queued"
+    stored_body = body if sent else f"{body}\n\n[SMTP] {detail}"
+    conn.execute("""
+    INSERT INTO lms_email_outbox (recipient, subject, body, status, sent_at)
+    VALUES (?, ?, ?, ?, CASE WHEN ?='sent' THEN CURRENT_TIMESTAMP ELSE NULL END)
+    """, (recipient, subject, stored_body, status, status))
 
 
 def create_reset_token(conn, user_id):
@@ -668,6 +703,79 @@ def lms_quiz():
     return render_lms("quiz", quizzes=quizzes)
 
 
+@app.route("/lms/quiz/<int:quiz_id>", methods=["GET", "POST"])
+def lms_take_quiz(quiz_id):
+    user, redirect_response = require_login("student")
+    if redirect_response:
+        return redirect_response
+
+    with get_db() as conn:
+        quiz = conn.execute("SELECT * FROM lms_quizzes WHERE id=?", (quiz_id,)).fetchone()
+        if quiz is None:
+            abort(404)
+
+        questions = conn.execute("""
+        SELECT *
+        FROM lms_quiz_questions
+        WHERE quiz_id=?
+        ORDER BY id
+        """, (quiz_id,)).fetchall()
+
+        if request.method == "POST":
+            score = 0
+            max_score = 0
+            answers = {}
+
+            for question in questions:
+                key = f"question_{question['id']}"
+                answer = request.form.get(key, "").strip().upper()
+                answers[str(question["id"])] = answer
+                points = int(question["points"] or 1)
+                max_score += points
+                if answer and answer == str(question["correct_option"] or "").upper():
+                    score += points
+
+            conn.execute("""
+            INSERT INTO lms_quiz_attempts (quiz_id, student_id, score, max_score, answers, submitted_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(quiz_id, student_id) DO UPDATE SET
+                score=excluded.score,
+                max_score=excluded.max_score,
+                answers=excluded.answers,
+                submitted_at=CURRENT_TIMESTAMP
+            """, (quiz_id, user["id"], score, max_score, json.dumps(answers)))
+            flash("Quiz soumis.")
+            return redirect(url_for("lms_quiz_result", quiz_id=quiz_id))
+
+    return render_lms("quiz_take", quiz=quiz, questions=questions)
+
+
+@app.route("/lms/quiz/<int:quiz_id>/resultat")
+def lms_quiz_result(quiz_id):
+    user, redirect_response = require_login("student")
+    if redirect_response:
+        return redirect_response
+
+    with get_db() as conn:
+        quiz = conn.execute("SELECT * FROM lms_quizzes WHERE id=?", (quiz_id,)).fetchone()
+        if quiz is None:
+            abort(404)
+        questions = conn.execute("""
+        SELECT *
+        FROM lms_quiz_questions
+        WHERE quiz_id=?
+        ORDER BY id
+        """, (quiz_id,)).fetchall()
+        attempt = conn.execute("""
+        SELECT *
+        FROM lms_quiz_attempts
+        WHERE quiz_id=? AND student_id=?
+        """, (quiz_id, user["id"])).fetchone()
+
+    answers = json.loads(attempt["answers"] or "{}") if attempt else {}
+    return render_lms("quiz_result", quiz=quiz, questions=questions, attempt=attempt, answers=answers)
+
+
 def resources_page(page, resource_type):
     user, redirect_response = require_login()
     if redirect_response:
@@ -897,7 +1005,9 @@ def lms_teacher_content():
 
 @app.route("/lms/prof/seances", methods=["POST"])
 def lms_teacher_add_session():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         conn.execute("""
         INSERT INTO lms_sessions (course_id, title, session_date, start_time, end_time, duration, status, meet_url, replay_url)
@@ -908,7 +1018,9 @@ def lms_teacher_add_session():
 
 @app.route("/lms/prof/devoirs", methods=["POST"])
 def lms_teacher_add_assignment():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         conn.execute("INSERT INTO lms_assignments (course_id, title, description, due_at, max_score) VALUES (?, ?, ?, ?, ?)",
                      (course_id_from_request(), request.form.get("title", ""), request.form.get("description", ""), request.form.get("due_at", ""), request.form.get("max_score", 20)))
@@ -917,7 +1029,9 @@ def lms_teacher_add_assignment():
 
 @app.route("/lms/prof/quiz", methods=["POST"])
 def lms_teacher_add_quiz():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         cur = conn.execute("INSERT INTO lms_quizzes (course_id, title, duration_minutes) VALUES (?, ?, ?)",
                            (course_id_from_request(), request.form.get("title", ""), request.form.get("duration_minutes", 20)))
@@ -926,12 +1040,69 @@ def lms_teacher_add_quiz():
             INSERT INTO lms_quiz_questions (quiz_id, question, option_a, option_b, option_c, option_d, correct_option, points)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (cur.lastrowid, request.form.get("question", ""), request.form.get("option_a", ""), request.form.get("option_b", ""), request.form.get("option_c", ""), request.form.get("option_d", ""), request.form.get("correct_option", "A"), request.form.get("points", 1)))
-    return redirect(url_for("lms_teacher_content"))
+    return redirect(url_for("lms_teacher_edit_quiz", quiz_id=cur.lastrowid))
+
+
+@app.route("/lms/prof/quiz/<int:quiz_id>")
+def lms_teacher_edit_quiz(quiz_id):
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
+
+    with get_db() as conn:
+        quiz = conn.execute("SELECT * FROM lms_quizzes WHERE id=?", (quiz_id,)).fetchone()
+        if quiz is None:
+            abort(404)
+        questions = conn.execute("""
+        SELECT *
+        FROM lms_quiz_questions
+        WHERE quiz_id=?
+        ORDER BY id
+        """, (quiz_id,)).fetchall()
+        attempts = conn.execute("""
+        SELECT a.*, u.full_name AS student_name
+        FROM lms_quiz_attempts a
+        JOIN lms_users u ON u.id=a.student_id
+        WHERE a.quiz_id=?
+        ORDER BY a.submitted_at DESC
+        """, (quiz_id,)).fetchall()
+
+    return render_lms("quiz_edit", quiz=quiz, questions=questions, attempts=attempts)
+
+
+@app.route("/lms/prof/quiz/<int:quiz_id>/questions", methods=["POST"])
+def lms_teacher_add_quiz_question(quiz_id):
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
+
+    with get_db() as conn:
+        if conn.execute("SELECT id FROM lms_quizzes WHERE id=?", (quiz_id,)).fetchone() is None:
+            abort(404)
+        conn.execute("""
+        INSERT INTO lms_quiz_questions (
+            quiz_id, question, option_a, option_b, option_c, option_d, correct_option, points
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            quiz_id,
+            request.form.get("question", "").strip(),
+            request.form.get("option_a", "").strip(),
+            request.form.get("option_b", "").strip(),
+            request.form.get("option_c", "").strip(),
+            request.form.get("option_d", "").strip(),
+            request.form.get("correct_option", "A").strip().upper(),
+            request.form.get("points", "1").strip() or 1,
+        ))
+    flash("Question ajoutee.")
+    return redirect(url_for("lms_teacher_edit_quiz", quiz_id=quiz_id))
 
 
 @app.route("/lms/prof/ressources", methods=["POST"])
 def lms_teacher_add_resource():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         conn.execute("INSERT INTO lms_resources (course_id, title, resource_type, url, description) VALUES (?, ?, ?, ?, ?)",
                      (course_id_from_request(), request.form.get("title", ""), request.form.get("resource_type", "note"), request.form.get("url", ""), request.form.get("description", "")))
@@ -940,7 +1111,9 @@ def lms_teacher_add_resource():
 
 @app.route("/lms/prof/annonces", methods=["POST"])
 def lms_teacher_add_announcement():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         conn.execute("INSERT INTO lms_announcements (course_id, title, body, category, priority) VALUES (?, ?, ?, ?, ?)",
                      (course_id_from_request(), request.form.get("title", ""), request.form.get("body", ""), request.form.get("category", "Info"), request.form.get("priority", "normal")))
@@ -985,7 +1158,9 @@ def lms_teacher_grades():
 
 @app.route("/lms/prof/soumissions/<int:submission_id>/noter", methods=["POST"])
 def lms_teacher_grade_submission(submission_id):
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     with get_db() as conn:
         conn.execute("UPDATE lms_submissions SET score=?, feedback=?, graded_at=CURRENT_TIMESTAMP WHERE id=?",
                      (request.form.get("score", ""), request.form.get("feedback", ""), submission_id))
@@ -994,7 +1169,9 @@ def lms_teacher_grade_submission(submission_id):
 
 @app.route("/lms/prof/certificats", methods=["POST"])
 def lms_teacher_issue_certificate():
-    require_login({"teacher", "admin"})
+    user, redirect_response = require_login({"teacher", "admin"})
+    if redirect_response:
+        return redirect_response
     course_id = course_id_from_request()
     student_id = request.form.get("student_id")
     code = f"IUA-{course_id}-{student_id}"

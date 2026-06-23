@@ -466,7 +466,53 @@
                                 <h2>{{ item.title }}</h2>
                                 <p>{{ item.question_count }} questions · {{ item.duration_minutes }} min</p>
                                 <p><strong>Score:</strong> {% if item.score is not none %}{{ item.score }}/{{ item.max_score }}{% else %}Non passe{% endif %}</p>
-                                <button class="button secondary" type="button">Voir les resultats</button>
+                                <div class="actions">
+                                    <a class="button" href="{{ url_for('lms_take_quiz', quiz_id=item.id) }}">{% if item.score is not none %}Repasser{% else %}Commencer{% endif %}</a>
+                                    {% if item.score is not none %}
+                                        <a class="button secondary" href="{{ url_for('lms_quiz_result', quiz_id=item.id) }}">Voir les resultats</a>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </section>
+
+                {% elif page == "quiz_take" %}
+                    <section class="page-title"><div><h1>{{ quiz.title }}</h1><p>{{ questions|length }} questions · {{ quiz.duration_minutes }} min</p></div></section>
+                    <form class="panel" method="POST" action="{{ url_for('lms_take_quiz', quiz_id=quiz.id) }}">
+                        <div class="list">
+                            {% for question in questions %}
+                                <article class="card">
+                                    <h2>Question {{ loop.index }}</h2>
+                                    <p>{{ question.question }}</p>
+                                    {% for option_key, option_text in [("A", question.option_a), ("B", question.option_b), ("C", question.option_c), ("D", question.option_d)] %}
+                                        {% if option_text %}
+                                            <label class="row" style="align-items:flex-start;">
+                                                <input style="width:auto; min-height:auto; margin-top:4px;" type="radio" name="question_{{ question.id }}" value="{{ option_key }}" required>
+                                                <span><strong>{{ option_key }}.</strong> {{ option_text }}</span>
+                                            </label>
+                                        {% endif %}
+                                    {% endfor %}
+                                </article>
+                            {% else %}
+                                <section class="empty"><div><h2>Aucune question</h2><p>Ce quiz n'est pas encore pret.</p></div></section>
+                            {% endfor %}
+                        </div>
+                        {% if questions %}
+                            <div class="field"><button class="button" type="submit">Soumettre le quiz</button></div>
+                        {% endif %}
+                    </form>
+
+                {% elif page == "quiz_result" %}
+                    <section class="page-title"><div><h1>Resultats - {{ quiz.title }}</h1><p>{% if attempt %}Score {{ attempt.score }}/{{ attempt.max_score }}{% else %}Aucune tentative{% endif %}</p></div></section>
+                    <section class="grid two">
+                        {% for question in questions %}
+                            {% set given = answers.get(question.id|string, "") %}
+                            <article class="card">
+                                <h2>Question {{ loop.index }}</h2>
+                                <p>{{ question.question }}</p>
+                                <p><strong>Votre reponse:</strong> {{ given or "-" }}</p>
+                                <p><strong>Bonne reponse:</strong> {{ question.correct_option }}</p>
+                                <span class="badge {% if given != question.correct_option %}blue{% endif %}">{% if given == question.correct_option %}Correct{% else %}A revoir{% endif %}</span>
                             </article>
                         {% endfor %}
                     </section>
@@ -631,6 +677,20 @@
                             <div class="grid split-form"><div class="field"><label>Bonne option</label><input name="correct_option" value="A"></div><div class="field"><label>Duree</label><input name="duration_minutes" value="20"></div></div>
                             <button class="button" type="submit">Creer</button>
                         </form>
+                        <section class="panel">
+                            <h2>Quiz existants</h2>
+                            <div class="list">
+                                {% for quiz_item in data.quizzes %}
+                                    <article class="card">
+                                        <strong>{{ quiz_item.title }}</strong>
+                                        <span>{{ quiz_item.duration_minutes }} min</span>
+                                        <a class="button secondary" href="{{ url_for('lms_teacher_edit_quiz', quiz_id=quiz_item.id) }}">Gerer les questions</a>
+                                    </article>
+                                {% else %}
+                                    <p>Aucun quiz.</p>
+                                {% endfor %}
+                            </div>
+                        </section>
                         <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_resource') }}">
                             <h2>Ajouter une ressource</h2><input type="hidden" name="course_id" value="{{ course.id }}">
                             <div class="field"><label>Titre</label><input name="title" required></div><div class="field"><label>Type</label><select name="resource_type"><option value="note">Note de cours</option><option value="texte">Texte</option></select></div>
@@ -652,6 +712,48 @@
                                     </form>
                                 {% else %}<p>Aucune question.</p>{% endfor %}
                             </div>
+                        </section>
+                    </section>
+
+                {% elif page == "quiz_edit" %}
+                    <section class="page-title"><div><h1>Gestion du quiz</h1><p>{{ quiz.title }}</p></div><a class="button secondary" href="{{ url_for('lms_teacher_content') }}">Retour contenus</a></section>
+                    <section class="grid two">
+                        <form class="panel" method="POST" action="{{ url_for('lms_teacher_add_quiz_question', quiz_id=quiz.id) }}">
+                            <h2>Ajouter une question</h2>
+                            <div class="field"><label>Question</label><textarea name="question" required></textarea></div>
+                            <div class="grid split-form">
+                                <input name="option_a" placeholder="Option A" required>
+                                <input name="option_b" placeholder="Option B" required>
+                                <input name="option_c" placeholder="Option C">
+                                <input name="option_d" placeholder="Option D">
+                            </div>
+                            <div class="grid split-form">
+                                <div class="field"><label>Bonne option</label><select name="correct_option"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+                                <div class="field"><label>Points</label><input name="points" value="1"></div>
+                            </div>
+                            <button class="button" type="submit">Ajouter la question</button>
+                        </form>
+                        <section class="panel">
+                            <h2>Questions</h2>
+                            <div class="list">
+                                {% for question in questions %}
+                                    <article class="card">
+                                        <strong>{{ loop.index }}. {{ question.question }}</strong>
+                                        <p>A. {{ question.option_a }}<br>B. {{ question.option_b }}{% if question.option_c %}<br>C. {{ question.option_c }}{% endif %}{% if question.option_d %}<br>D. {{ question.option_d }}{% endif %}</p>
+                                        <span class="badge">Bonne reponse: {{ question.correct_option }} · {{ question.points }} pt</span>
+                                    </article>
+                                {% else %}
+                                    <p>Aucune question pour ce quiz.</p>
+                                {% endfor %}
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <h2>Tentatives</h2>
+                            {% for attempt in attempts %}
+                                <p><strong>{{ attempt.student_name }}</strong> · {{ attempt.score }}/{{ attempt.max_score }} · {{ attempt.submitted_at }}</p>
+                            {% else %}
+                                <p>Aucune tentative.</p>
+                            {% endfor %}
                         </section>
                     </section>
 
