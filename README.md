@@ -17,6 +17,22 @@ Puis ouvrir `http://127.0.0.1:5001/lms/login`.
 - Professeur : `prof@iua.ci` / `prof123`
 - Etudiant : `archille.kouame@iua.ci` / `demo123`
 
+## Emails
+
+Par defaut, les invitations et reinitialisations sont stockees dans la boite d'envoi interne `lms_email_outbox`.
+Pour envoyer de vrais emails, copier `.env.example` en `.env`, renseigner SMTP, puis charger ces variables avant le lancement.
+
+Exemple Gmail :
+
+```bash
+export SMTP_HOST="smtp.gmail.com"
+export SMTP_PORT="587"
+export SMTP_USER="votre_email@gmail.com"
+export SMTP_PASSWORD="mot_de_passe_application"
+export SMTP_FROM="votre_email@gmail.com"
+export SMTP_TLS="1"
+```
+
 ## Fonctionnalites
 
 - Back-office professeur
